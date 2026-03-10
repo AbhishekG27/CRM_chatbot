@@ -112,6 +112,18 @@ Use `created_at` for when a record was added to the CRM system.
 When the user asks for "counts", "breakdown", "by [field]", or "for each", use `operation: "aggregate"`.
 Always group by the field requested.
 
+## FUNNEL STAGE BREAKDOWN — CRITICAL
+If the user asks for "stage", "stages", "funnel stage", "lead stage", or "pipeline stage" counts/breakdowns,
+they mean the granular funnel stages stored on leads as `funnel_stage_id` (NOT the high-level `status` field).
+
+Use this pipeline shape:
+- System-wide stage counts:
+  `{"pipeline": [{"$group": {"_id": "$funnel_stage_id", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}]}`
+
+- Stage counts for a business/campaign/page/form name like "Shreyas Infra":
+  - Add a `$match` first using the name-regex rule across campaign_name/page_name/form_name
+  - Then group by `$funnel_stage_id`
+
 Examples:
 - Leads per business: `{"pipeline": [{"$group": {"_id": "$page_name", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}]}`
 - Leads by status: `{"pipeline": [{"$group": {"_id": "$status", "count": {"$sum": 1}}}, {"$sort": {"count": -1}}]}`

@@ -187,26 +187,32 @@ def execute_query(gemini_response: dict) -> dict:
                     target_key = "Group" # Generic but better than 'name'
                     
                     if id_val is None:
-                        doc[target_key] = "New Leads / Unassigned"
+                        # For funnel-stage breakdowns, treat null as unassigned/new
+                        doc["Stage"] = "New Leads / Unassigned"
+                        doc.pop("Group", None)
                     elif isinstance(id_val, str):
                         # If grouping by funnel_stage_id, replace ObjectId-ish values with stage names
                         stage_name = _stage_name_for_id(id_val)
                         if stage_name:
-                            target_key = "Stage"
-                            doc[target_key] = stage_name
+                            doc["Stage"] = stage_name
+                            doc.pop("Group", None)
                         else:
                             doc[target_key] = HUMAN_MAP.get(id_val.lower(), id_val)
                     elif isinstance(id_val, dict):
                         # Flatten nested _id and map values if possible
+                        stage_set = False
                         for k, v in id_val.items():
                             if isinstance(v, str):
                                 stage_name = _stage_name_for_id(v)
                                 if stage_name and k in {"funnel_stage_id", "stage_id"}:
-                                    doc["stage"] = stage_name
+                                    doc["Stage"] = stage_name
+                                    stage_set = True
                                 else:
                                     doc[k] = HUMAN_MAP.get(v.lower(), v)
                             else:
                                 doc[k] = v
+                        if stage_set:
+                            doc.pop("Group", None)
                     else:
                         doc[target_key] = str(id_val)
                     
