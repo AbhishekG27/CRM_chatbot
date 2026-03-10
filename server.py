@@ -76,6 +76,17 @@ def leads_count():
         return jsonify({"count": None, "error": str(e)}), 500
 
 
+@app.route("/api/health")
+def health():
+    """Lightweight health/config check for UI."""
+    return jsonify({
+        "ok": True,
+        "has_mongo_uri": bool(os.getenv("MONGO_URI")),
+        "has_gemini_key": bool(os.getenv("GEMINI_API_KEY")),
+        "db_name": os.getenv("DB_NAME") or None,
+    })
+
+
 @app.route("/")
 def index():
     return send_from_directory("public", "index.html")

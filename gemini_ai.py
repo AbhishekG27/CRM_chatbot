@@ -9,14 +9,7 @@ from schema_context import SCHEMA_CONTEXT
 
 load_dotenv()
 
-_api_key = os.getenv("GEMINI_API_KEY")
-if not _api_key:
-    raise RuntimeError(
-        "GEMINI_API_KEY is not set. Set it as an environment variable before starting the server."
-    )
-
-# Initialize the new google-genai client
-client = genai.Client(api_key=_api_key)
+client = None
 
 MODEL = "gemini-2.0-flash"
 
@@ -96,6 +89,18 @@ def ask_gemini(session_id: str, user_message: str) -> dict:
     Send user question to Google Gemini 2.0 Flash.
     Returns structured dict with MongoDB query and answer.
     """
+    global client
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return {
+            "collection": None,
+            "operation": "none",
+            "answer": "The system is not configured yet (missing AI key). Please contact your administrator."
+        }
+
+    if client is None:
+        client = genai.Client(api_key=api_key)
+
     history = get_or_create_session(session_id)
 
     prompt = (
