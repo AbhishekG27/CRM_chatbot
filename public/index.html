@@ -261,22 +261,26 @@
       gap: 5px;
     }
 
+    #business-bar {
+      border-bottom: 1px solid var(--border-light);
+      background: #f9fafb;
+      padding: 8px 24px;
+      display: flex;
+      justify-content: center;
+    }
+
     .biz-filter {
       display: flex;
       align-items: center;
-      gap: 6px;
-      margin-left: 8px;
-      padding-left: 10px;
-      border-left: 1px solid var(--border-light);
-      flex-shrink: 0;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: center;
     }
 
     .biz-label {
-      font-size: 10px;
+      font-size: 12px;
       font-weight: 600;
-      color: var(--text-dim);
-      letter-spacing: .2px;
-      text-transform: uppercase;
+      color: var(--text-muted);
     }
 
     .pill {
@@ -735,8 +739,11 @@
         <span class="pill">funnels</span>
         <span class="pill">users</span>
       </div>
+    </div>
+
+    <div id="business-bar">
       <div class="biz-filter" title="Filter chat to a specific business">
-        <span class="biz-label">Business</span>
+        <span class="biz-label">Which business are you looking at?</span>
         <span class="pill btn" id="biz-all" onclick="setBusinessFilter('all')">All</span>
         <span class="pill btn" id="biz-tekspot" onclick="setBusinessFilter('tekspot')">Tekspot</span>
         <span class="pill btn" id="biz-shreyas" onclick="setBusinessFilter('shreyas')">Shreyas</span>
