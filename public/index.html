@@ -908,14 +908,7 @@
       setLoading(true);
 
       try {
-        // Send user message + session_id. NO DB data is sent to the backend AI.
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: msg, session_id: sessionId })
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Server error');
+        const data = await postChatWithRetry({ message: msg, session_id: sessionId });
 
         sessionId = data.session_id;
         typingEl.remove();
@@ -927,13 +920,43 @@
 
         if (!data.success && data.error) appendError(data.error);
         loadHistory();
-
       } catch (err) {
         typingEl.remove();
-        appendError(err.message);
+        const msg = (err && err.message) ? err.message : String(err || 'Unknown error');
+        if (/failed to fetch/i.test(msg)) {
+          appendError('Cannot reach the server right now. If this was just deployed, wait 20–30 seconds and try again.');
+        } else {
+          appendError(msg);
+        }
       } finally {
         setLoading(false);
       }
+    }
+
+    async function postChatWithRetry(payload) {
+      const attempts = 2; // one retry for transient network errors / cold start
+      let lastErr = null;
+      for (let i = 0; i < attempts; i++) {
+        try {
+          // Send user message + session_id. NO DB data is sent to the backend AI.
+          const res = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Server error');
+          return data;
+        } catch (e) {
+          lastErr = e;
+          // Retry only for network-ish failures
+          const m = (e && e.message) ? e.message : '';
+          const shouldRetry = /failed to fetch/i.test(m);
+          if (!shouldRetry || i === attempts - 1) throw e;
+          await new Promise(r => setTimeout(r, 1200));
+        }
+      }
+      throw lastErr || new Error('Server error');
     }
 
     // ── Render: User bubble ──
