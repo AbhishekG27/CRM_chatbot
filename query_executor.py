@@ -76,6 +76,7 @@ def execute_query(gemini_response: dict) -> dict:
         projection = gemini_response.get("projection", {})
         sort = gemini_response.get("sort", {})
         limit = int(gemini_response.get("limit", 20))
+        funnel_stage_name_by_id = None  # lazy-loaded for nicer aggregate output
 
         # Blocked fields for users — never expose passwords
         BLOCKED = {"password", "password_hash"}
@@ -155,6 +156,30 @@ def execute_query(gemini_response: dict) -> dict:
                 "tekspot": "TekspotEdu"
             }
             
+            def _looks_like_objectid(s: str) -> bool:
+                if not isinstance(s, str) or len(s) != 24:
+                    return False
+                try:
+                    int(s, 16)
+                    return True
+                except Exception:
+                    return False
+
+            def _stage_name_for_id(stage_id: str) -> str | None:
+                nonlocal funnel_stage_name_by_id
+                if not _looks_like_objectid(stage_id):
+                    return None
+                if funnel_stage_name_by_id is None:
+                    try:
+                        funnel_stage_name_by_id = {
+                            str(s["_id"]): s.get("name", "")
+                            for s in get_db()["funnel_stages"].find({}, {"name": 1})
+                        }
+                    except Exception:
+                        funnel_stage_name_by_id = {}
+                name = funnel_stage_name_by_id.get(stage_id)
+                return name or None
+
             for doc in raw_results:
                 if "_id" in doc:
                     id_val = doc["_id"]
@@ -164,12 +189,22 @@ def execute_query(gemini_response: dict) -> dict:
                     if id_val is None:
                         doc[target_key] = "New Leads / Unassigned"
                     elif isinstance(id_val, str):
-                        doc[target_key] = HUMAN_MAP.get(id_val.lower(), id_val)
+                        # If grouping by funnel_stage_id, replace ObjectId-ish values with stage names
+                        stage_name = _stage_name_for_id(id_val)
+                        if stage_name:
+                            target_key = "Stage"
+                            doc[target_key] = stage_name
+                        else:
+                            doc[target_key] = HUMAN_MAP.get(id_val.lower(), id_val)
                     elif isinstance(id_val, dict):
                         # Flatten nested _id and map values if possible
                         for k, v in id_val.items():
                             if isinstance(v, str):
-                                doc[k] = HUMAN_MAP.get(v.lower(), v)
+                                stage_name = _stage_name_for_id(v)
+                                if stage_name and k in {"funnel_stage_id", "stage_id"}:
+                                    doc["stage"] = stage_name
+                                else:
+                                    doc[k] = HUMAN_MAP.get(v.lower(), v)
                             else:
                                 doc[k] = v
                     else:
