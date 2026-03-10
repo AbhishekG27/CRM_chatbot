@@ -261,6 +261,24 @@
       gap: 5px;
     }
 
+    .biz-filter {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: 8px;
+      padding-left: 10px;
+      border-left: 1px solid var(--border-light);
+      flex-shrink: 0;
+    }
+
+    .biz-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-dim);
+      letter-spacing: .2px;
+      text-transform: uppercase;
+    }
+
     .pill {
       padding: 3px 8px;
       background: var(--bg);
@@ -269,6 +287,25 @@
       font-size: 10px;
       font-weight: 500;
       color: var(--text-muted);
+    }
+
+    .pill.btn {
+      cursor: pointer;
+      user-select: none;
+      transition: background .15s, border-color .15s, color .15s;
+    }
+
+    .pill.btn:hover {
+      border-color: rgba(79, 110, 247, .35);
+      background: rgba(79, 110, 247, .06);
+      color: var(--text);
+    }
+
+    .pill.btn.active {
+      border-color: rgba(79, 110, 247, .55);
+      background: rgba(79, 110, 247, .12);
+      color: var(--text);
+      font-weight: 600;
     }
 
     /* CHAT AREA */
@@ -698,6 +735,12 @@
         <span class="pill">funnels</span>
         <span class="pill">users</span>
       </div>
+      <div class="biz-filter" title="Filter chat to a specific business">
+        <span class="biz-label">Business</span>
+        <span class="pill btn" id="biz-all" onclick="setBusinessFilter('all')">All</span>
+        <span class="pill btn" id="biz-tekspot" onclick="setBusinessFilter('tekspot')">Tekspot</span>
+        <span class="pill btn" id="biz-shreyas" onclick="setBusinessFilter('shreyas')">Shreyas</span>
+      </div>
     </div>
 
     <div id="chat-area">
@@ -739,10 +782,12 @@
     // ── Persistence keys ──
     const LS_SESSION = 'cmr_session_id';
     const LS_MSGS = 'cmr_messages';
+    const LS_BIZ = 'cmr_business_filter';
 
     // ── State ──
     let sessionId = localStorage.getItem(LS_SESSION) || null;
     let isLoading = false;
+    let businessFilter = localStorage.getItem(LS_BIZ) || 'all'; // all | tekspot | shreyas
     // messages array: [{role, text, data, count, ts}]
     let messages = [];
     try { messages = JSON.parse(localStorage.getItem(LS_MSGS) || '[]'); } catch (e) { }
@@ -752,6 +797,9 @@
     const sendBtn = document.getElementById('send-btn');
     const welcome = document.getElementById('welcome');
     const histList = document.getElementById('history-list');
+    const bizAllBtn = document.getElementById('biz-all');
+    const bizTekspotBtn = document.getElementById('biz-tekspot');
+    const bizShreyasBtn = document.getElementById('biz-shreyas');
 
     // ── Restore previous messages on page load ──
     if (messages.length) {
@@ -765,6 +813,33 @@
 
     loadHistory();
     loadLeadsCount();
+    updateBusinessUI();
+
+    function setBusinessFilter(v) {
+      businessFilter = v || 'all';
+      localStorage.setItem(LS_BIZ, businessFilter);
+      updateBusinessUI();
+    }
+
+    function updateBusinessUI() {
+      [bizAllBtn, bizTekspotBtn, bizShreyasBtn].forEach(b => b && b.classList.remove('active'));
+      if (businessFilter === 'tekspot') bizTekspotBtn.classList.add('active');
+      else if (businessFilter === 'shreyas') bizShreyasBtn.classList.add('active');
+      else bizAllBtn.classList.add('active');
+    }
+
+    function applyBusinessScope(rawMsg) {
+      const msg = (rawMsg || '').trim();
+      if (!msg) return msg;
+
+      if (businessFilter === 'tekspot') {
+        return `For TekspotEdu only: ${msg}`;
+      }
+      if (businessFilter === 'shreyas') {
+        return `For Shreyas Infra only: ${msg}`;
+      }
+      return msg;
+    }
 
     // ── Auto-resize textarea ──
     userInput.addEventListener('input', () => {
@@ -809,7 +884,8 @@
 
     // ── Send message ──
     async function sendMessage() {
-      const msg = userInput.value.trim();
+      const rawMsg = userInput.value.trim();
+      const msg = applyBusinessScope(rawMsg);
       if (!msg || isLoading) return;
 
       hideWelcome();
